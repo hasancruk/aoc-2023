@@ -24,6 +24,8 @@ pub fn main() void {
         std.debug.assert(digits[0] != null);
         sum += @as(u32, @intCast(digits[0].?)) * 10;
         sum += if (digits[1]) |d1| d1 else digits[0].?;
+
+        std.debug.print("{s} : ({?d},{?d})\n", .{ line, digits[0], digits[1] });
     }
     std.debug.print("{}\n", .{sum});
 }

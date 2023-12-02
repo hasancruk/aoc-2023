@@ -161,7 +161,8 @@ pub fn main() !void {
 
         var num = concatDigits(extracted);
 
-        std.debug.print("{s} : {s} : ({d}, {d}) : {d}\n", .{ line, transformed, extracted[0], extracted[1], num });
+        std.debug.print("{s} : ({d},{d})\n", .{ line, extracted[0], extracted[1] });
+        // std.debug.print("{s} : {s} : ({d}, {d}) : {d}\n", .{ line, transformed, extracted[0], extracted[1], num });
 
         try list.append(num);
     }
