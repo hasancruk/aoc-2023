@@ -155,11 +155,48 @@ pub fn main() !void {
     var reader = bufReader.reader();
     var buffer: [512]u8 = undefined;
     while (try reader.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
-        var num = concatDigits(extractDigits(line));
+        var transformed = try transformToDigits(line, allocator);
+        defer allocator.free(transformed);
+        var extracted = extractDigits(transformed);
+
+        var num = concatDigits(extracted);
+
+        std.debug.print("{s} : {s} : ({d}, {d}) : {d}\n", .{ line, transformed, extracted[0], extracted[1], num });
+
         try list.append(num);
     }
     var total = sumList(list);
     std.debug.print("{d}\n", .{total});
+}
+
+test "transform 'hktntngtlfflzrdpfourninevlzpdrngvchg2' to '42'" {
+    const expect = 42;
+    var transformed = try transformToDigits("hktntngtlfflzrdpfourninevlzpdrngvchg2", test_allocator);
+    defer test_allocator.free(transformed);
+
+    var result = concatDigits(extractDigits(transformed));
+
+    try std.testing.expectEqual(@as(u8, expect), result);
+}
+
+test "transform '4nineeightseven2' to '42'" {
+    const expect = 42;
+    var transformed = try transformToDigits("4nineeightseven2", test_allocator);
+    defer test_allocator.free(transformed);
+
+    var result = concatDigits(extractDigits(transformed));
+
+    try std.testing.expectEqual(@as(u8, expect), result);
+}
+
+test "transform '7pqrstsixteen' to '76'" {
+    const expect = 76;
+    var transformed = try transformToDigits("7pqrstsixteen", test_allocator);
+    defer test_allocator.free(transformed);
+
+    var result = concatDigits(extractDigits(transformed));
+
+    try std.testing.expectEqual(@as(u8, expect), result);
 }
 
 test "transform '7pqrstsixteen' to '7pqrst6teen'" {
