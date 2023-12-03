@@ -157,7 +157,17 @@ pub fn main() !void {
     std.debug.print("{d}\n", .{total});
 }
 
-test "transform 'hktntngtlfflzrdpfourninevlzpdrngvchg2' to '42'" {
+test "extract 'kbtsf6sixczlbqzrjfm9oneightmqg' to '68'" {
+    const expect = 68;
+    var transformed = try transformToDigits("kbtsf6sixczlbqzrjfm9oneightmqg", test_allocator);
+    defer test_allocator.free(transformed);
+
+    var result = concatDigits(extractDigits(transformed));
+
+    try std.testing.expectEqual(@as(u8, expect), result);
+}
+
+test "extract 'hktntngtlfflzrdpfourninevlzpdrngvchg2' to '42'" {
     const expect = 42;
     var transformed = try transformToDigits("hktntngtlfflzrdpfourninevlzpdrngvchg2", test_allocator);
     defer test_allocator.free(transformed);
@@ -167,7 +177,7 @@ test "transform 'hktntngtlfflzrdpfourninevlzpdrngvchg2' to '42'" {
     try std.testing.expectEqual(@as(u8, expect), result);
 }
 
-test "transform '4nineeightseven2' to '42'" {
+test "extract '4nineeightseven2' to '42'" {
     const expect = 42;
     var transformed = try transformToDigits("4nineeightseven2", test_allocator);
     defer test_allocator.free(transformed);
@@ -177,7 +187,7 @@ test "transform '4nineeightseven2' to '42'" {
     try std.testing.expectEqual(@as(u8, expect), result);
 }
 
-test "transform '7pqrstsixteen' to '76'" {
+test "extract '7pqrstsixteen' to '76'" {
     const expect = 76;
     var transformed = try transformToDigits("7pqrstsixteen", test_allocator);
     defer test_allocator.free(transformed);
@@ -187,16 +197,24 @@ test "transform '7pqrstsixteen' to '76'" {
     try std.testing.expectEqual(@as(u8, expect), result);
 }
 
-test "transform '7pqrstsixteen' to '7pqrst6teen'" {
-    const expect = "7pqrst6teen";
+test "transform 'kbtsf6sixczlbqzrjfm9oneightmqg' to 'kbtsf66ixczlbqzrjfm91n8ightmqg'" {
+    const expect = "kbtsf66ixczlbqzrjfm91n8ightmqg";
+    var result = try transformToDigits("kbtsf6sixczlbqzrjfm9oneightmqg", test_allocator);
+    defer test_allocator.free(result);
+
+    try std.testing.expect(std.mem.eql(u8, expect, result));
+}
+
+test "transform '7pqrstsixteen' to '7pqrst6ixteen'" {
+    const expect = "7pqrst6ixteen";
     var result = try transformToDigits("7pqrstsixteen", test_allocator);
     defer test_allocator.free(result);
 
     try std.testing.expect(std.mem.eql(u8, expect, result));
 }
 
-test "transform 'two1nine' to '219'" {
-    const expect = "219";
+test "transform 'two1nine' to '2wo19ine'" {
+    const expect = "2wo19ine";
     var result = try transformToDigits("two1nine", test_allocator);
     defer test_allocator.free(result);
 
