@@ -86,14 +86,8 @@ fn transformToDigits(text: []const u8, allocator: Allocator) ![]u8 {
     };
     // defer not needed because returning as an owned slice, but it has to be freed by the caller
     var list = ArrayList(u8).init(allocator);
-    var skipBy: usize = 0;
 
     outer: for (text, 0..) |c, i| {
-        if (skipBy > 0) {
-            skipBy -= 1;
-            continue :outer;
-        }
-
         if (isDigit(c)) {
             try list.append(c);
             continue :outer;
@@ -104,9 +98,6 @@ fn transformToDigits(text: []const u8, allocator: Allocator) ![]u8 {
                     noMatches = false;
                     var num: u8 = wordToDigit(digit);
                     try list.append(num);
-
-                    // Skip forward by the number of characters in the matching digit
-                    skipBy = digit.len - 1;
                     continue :outer;
                 }
             }
@@ -158,11 +149,7 @@ pub fn main() !void {
         var transformed = try transformToDigits(line, allocator);
         defer allocator.free(transformed);
         var extracted = extractDigits(transformed);
-
         var num = concatDigits(extracted);
-
-        std.debug.print("{s} : ({d},{d})\n", .{ line, extracted[0], extracted[1] });
-        // std.debug.print("{s} : {s} : ({d}, {d}) : {d}\n", .{ line, transformed, extracted[0], extracted[1], num });
 
         try list.append(num);
     }
