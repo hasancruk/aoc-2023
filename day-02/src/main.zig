@@ -160,11 +160,56 @@ fn print(text: []const u8) void {
     std.debug.print("{s}\n", .{text});
 }
 
-test "extractSummary '3 red, 4 blue' to {red: 3, green: 0, blue: 4}" {
-    var result = try extractSummary("3 red, 4 blue", test_allocator);
-    defer test_allocator.free(result);
-    std.debug.print("(red: {d}, green: {d}, blue: {d})\n", .{ result.red, result.green, result.blue });
+// TODO Add toString
+const Person = struct {
+    const Self = @This();
+
+    name: []const u8,
+    age: u8,
+    hobbies: []const []const u8,
+    favoriteNumbers: []u8,
+    allocator: Allocator,
+
+    pub fn init(name: []const u8, age: u8, hobbies: []const []const u8, favoriteNumbers: []u8, allocator: Allocator) Person {
+        return Person{
+            .name = name,
+            .age = age,
+            .hobbies = hobbies,
+            .favoriteNumbers = favoriteNumbers,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: Self) void {
+        test_allocator.free(self.hobbies);
+        test_allocator.free(self.favoriteNumbers);
+    }
+};
+
+test "Person" {
+    var hobbiesList = ArrayList([]const u8).init(test_allocator);
+    var numberList = ArrayList(u8).init(test_allocator);
+    // defer hobbiesList.deinit();
+    try hobbiesList.append("coding");
+    try hobbiesList.append("cooking");
+    try hobbiesList.append("games");
+
+    try numberList.append(2);
+    try numberList.append(9);
+    try numberList.append(1);
+    try numberList.append(18);
+    // var hobbies = [_][]const u8{ "coding", "cooking", "games" };
+    var hasan = Person.init("Hasan", 27, try hobbiesList.toOwnedSlice(), try numberList.toOwnedSlice(), test_allocator);
+    defer hasan.deinit();
+
+    std.debug.print("Person(name: {s}, age: {d}, hobby 2: {s}, number: {d})\n", .{ hasan.name, hasan.age, hasan.hobbies[1], hasan.favoriteNumbers[3] });
 }
+
+// test "extractSummary '3 red, 4 blue' to {red: 3, green: 0, blue: 4}" {
+//     var result = try extractSummary("3 red, 4 blue", test_allocator);
+//     defer test_allocator.free(result);
+//     std.debug.print("(red: {d}, green: {d}, blue: {d})\n", .{ result.red, result.green, result.blue });
+// }
 
 test "extractGameId 'Game 102' to '102'" {
     var result = try extractGameId("Game 102", test_allocator);
