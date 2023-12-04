@@ -15,16 +15,17 @@ fn sumList(list: ArrayList(u8)) u16 {
     return sum;
 }
 
-// TODO struct to hold game data max seen. Or all seen then we can max it with a mem.max(slice)
-// TODO struct to hold game config
-
 const Summary = struct {
-    red: u8 = 0,
-    green: u8 = 0,
-    blue: u8 = 0,
+    red: u8,
+    green: u8,
+    blue: u8,
 
-    pub fn init() Summary {
-        return Summary{};
+    pub fn init(red: u8, green: u8, blue: u8) Summary {
+        return Summary{
+            .red = red,
+            .green = green,
+            .blue = blue,
+        };
     }
 };
 
@@ -35,23 +36,33 @@ const gameConfig = Summary{
 };
 
 const Game = struct {
+    const Self = @This();
+
     id: u8,
     red: []u8,
     green: []u8,
     blue: []u8,
+    allocator: Allocator,
 
-    // TODO will this need access to the allocator?
-    pub fn init(id: u8, red: []u8, green: []u8, blue: []u8) Game {
+    pub fn init(id: u8, red: []u8, green: []u8, blue: []u8, allocator: Allocator) Game {
         return Game{
             .id = id,
             .red = red,
             .green = green,
             .blue = blue,
+            .allocator = allocator,
         };
     }
 
+    // TODO all seen then we can max it with a mem.max(slice)
     pub fn maxValues() ?Summary {
         return null;
+    }
+
+    pub fn deinit(self: Self) void {
+        self.allocator.free(self.red);
+        self.allocator.free(self.green);
+        self.allocator.free(self.blue);
     }
 };
 
@@ -68,12 +79,20 @@ fn parseString(string: []const u8, delimiter: u8, allocator: Allocator) ![][]con
     return list.toOwnedSlice();
 }
 
-// 3 blue, 4 red => [3, blue], [4, red]
+fn extractGameId(gameLabel: []const u8, allocator: Allocator) !u8 {
+    var gameData = try parseString(gameLabel, ' ', allocator);
+    defer allocator.free(gameData);
+
+    return try std.fmt.parseUnsigned(u8, gameData[1], 10);
+}
+
 fn extractSummary(summary: []const u8, allocator: Allocator) !Summary {
     var summaryData = try parseString(summary, ',', allocator);
     defer allocator.free(summaryData);
 
-    var summaryStruct = Summary.init();
+    var redCount: ?u8 = null;
+    var greenCount: ?u8 = null;
+    var blueCount: ?u8 = null;
 
     for (summaryData) |cube| {
         var cubeTrimmed = std.mem.trim(u8, cube, " ");
@@ -84,19 +103,19 @@ fn extractSummary(summary: []const u8, allocator: Allocator) !Summary {
         var cubeCount = try std.fmt.parseUnsigned(u8, cubeCountStr, 10);
 
         if (std.mem.startsWith(u8, cubeColor, "red")) {
-            summaryStruct.red = cubeCount;
+            redCount = cubeCount;
         }
 
         if (std.mem.startsWith(u8, cubeColor, "green")) {
-            summaryStruct.green = cubeCount;
+            greenCount = cubeCount;
         }
 
         if (std.mem.startsWith(u8, cubeColor, "blue")) {
-            summaryStruct.blue = cubeCount;
+            blueCount = cubeCount;
         }
     }
 
-    return summaryStruct;
+    return Summary.init(redCount orelse 0, greenCount orelse 0, blueCount orelse 0);
 }
 
 // 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
@@ -105,15 +124,6 @@ fn extractSummaries(summaries: []const u8, allocator: Allocator) ![][]const u8 {
     defer allocator.free(summariesData);
 
     return summariesData;
-}
-
-// Game 1
-fn extractGameId(gameId: []const u8, allocator: Allocator) ![]const u8 {
-    var gameData = try parseString(gameId, ' ', allocator);
-    defer allocator.free(gameData);
-
-    var copy = try allocator.dupe(u8, gameData[1]);
-    return copy;
 }
 
 // Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
@@ -160,75 +170,24 @@ fn print(text: []const u8) void {
     std.debug.print("{s}\n", .{text});
 }
 
-// TODO Add toString
-const Person = struct {
-    const Self = @This();
+test "extractSummary '13 red, 2 blue, 8 green' to {red: 13, green: 8, blue: 2}" {
+    var result = try extractSummary("13 red, 2 blue, 8 green", test_allocator);
 
-    name: []const u8,
-    age: u8,
-    hobbies: []const []const u8,
-    favoriteNumbers: []u8,
-    allocator: Allocator,
-
-    pub fn init(name: []const u8, age: u8, hobbies: []const []const u8, favoriteNumbers: []u8, allocator: Allocator) Person {
-        return Person{
-            .name = name,
-            .age = age,
-            .hobbies = hobbies,
-            .favoriteNumbers = favoriteNumbers,
-            .allocator = allocator,
-        };
-    }
-
-    pub fn deinit(self: Self) void {
-        test_allocator.free(self.hobbies);
-        test_allocator.free(self.favoriteNumbers);
-    }
-};
-
-test "Person" {
-    var hobbiesList = ArrayList([]const u8).init(test_allocator);
-    var numberList = ArrayList(u8).init(test_allocator);
-    // defer hobbiesList.deinit();
-    try hobbiesList.append("coding");
-    try hobbiesList.append("cooking");
-    try hobbiesList.append("games");
-
-    try numberList.append(2);
-    try numberList.append(9);
-    try numberList.append(1);
-    try numberList.append(18);
-    // var hobbies = [_][]const u8{ "coding", "cooking", "games" };
-    var hasan = Person.init("Hasan", 27, try hobbiesList.toOwnedSlice(), try numberList.toOwnedSlice(), test_allocator);
-    defer hasan.deinit();
-
-    std.debug.print("Person(name: {s}, age: {d}, hobby 2: {s}, number: {d})\n", .{ hasan.name, hasan.age, hasan.hobbies[1], hasan.favoriteNumbers[3] });
+    try std.testing.expect(result.red == 13);
+    try std.testing.expect(result.green == 8);
+    try std.testing.expect(result.blue == 2);
 }
 
-// test "extractSummary '3 red, 4 blue' to {red: 3, green: 0, blue: 4}" {
-//     var result = try extractSummary("3 red, 4 blue", test_allocator);
-//     defer test_allocator.free(result);
-//     std.debug.print("(red: {d}, green: {d}, blue: {d})\n", .{ result.red, result.green, result.blue });
-// }
+test "extractSummary '3 red, 4 blue' to {red: 3, green: 0, blue: 4}" {
+    var result = try extractSummary("3 red, 4 blue", test_allocator);
+
+    try std.testing.expect(result.red == 3);
+    try std.testing.expect(result.green == 0);
+    try std.testing.expect(result.blue == 4);
+}
 
 test "extractGameId 'Game 102' to '102'" {
     var result = try extractGameId("Game 102", test_allocator);
-    defer test_allocator.free(result);
-    std.debug.print("{}\n", .{@TypeOf(result)});
-    try std.testing.expect(0 == 0);
+
+    try std.testing.expect(result == 102);
 }
-
-// test "splitScalar" {
-//     var line = "Game 1: 3 blue, 4 red;";
-//     var data = std.mem.splitScalar(u8, line, ':');
-
-//     var text = data.next() orelse "nothing here";
-//     var game = std.mem.splitScalar(u8, data.next().?, ',');
-//     print(text);
-//     print(game.next().?);
-
-//     std.debug.print("{?s}\n", .{data.next()});
-//     std.debug.print("{?s}\n", .{data.next()});
-
-//     try std.testing.expect(0 == 0);
-// }
