@@ -54,9 +54,12 @@ const Game = struct {
         };
     }
 
-    // TODO all seen then we can max it with a mem.max(slice)
-    pub fn maxValues() ?Summary {
-        return null;
+    pub fn maxValues(self: Self) Summary {
+        var maxRed = std.mem.max(u8, self.red);
+        var maxGreen = std.mem.max(u8, self.green);
+        var maxBlue = std.mem.max(u8, self.blue);
+
+        return Summary.init(maxRed, maxGreen, maxBlue);
     }
 
     pub fn deinit(self: Self) void {
@@ -65,10 +68,6 @@ const Game = struct {
         self.allocator.free(self.blue);
     }
 };
-
-fn parseGameData(game: []const u8) Game {
-    _ = game;
-}
 
 fn parseString(string: []const u8, delimiter: u8, allocator: Allocator) ![][]const u8 {
     var list = ArrayList([]const u8).init(allocator);
@@ -118,7 +117,6 @@ fn extractSummary(summary: []const u8, allocator: Allocator) !Summary {
     return Summary.init(redCount orelse 0, greenCount orelse 0, blueCount orelse 0);
 }
 
-// 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
 fn extractSummaries(summaries: []const u8, allocator: Allocator) ![3][]u8 {
     var summariesData = try parseString(summaries, ';', allocator);
     defer allocator.free(summariesData);
@@ -174,6 +172,17 @@ pub fn main() !void {
     }
     var total = sumList(list);
     std.debug.print("{d}\n", .{total});
+}
+
+test "extractGameData maxValues 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
+    var result = try extractGameData("Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green", test_allocator);
+    defer result.deinit();
+
+    var summary = result.maxValues();
+
+    try std.testing.expect(summary.red == 4);
+    try std.testing.expect(summary.green == 2);
+    try std.testing.expect(summary.blue == 6);
 }
 
 test "extractGameData 'Game 20: 4 green, 3 blue, 1 red; 9 red, 14 blue, 9 green; 1 blue, 17 red, 2 green; 8 red, 13 blue, 8 green; 7 red, 2 green, 20 blue; 6 green, 13 red, 5 blue'" {
