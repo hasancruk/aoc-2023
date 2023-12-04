@@ -119,25 +119,35 @@ fn extractSummary(summary: []const u8, allocator: Allocator) !Summary {
 }
 
 // 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-fn extractSummaries(summaries: []const u8, allocator: Allocator) ![][]const u8 {
+fn extractSummaries(summaries: []const u8, allocator: Allocator) ![3][]u8 {
     var summariesData = try parseString(summaries, ';', allocator);
     defer allocator.free(summariesData);
 
-    return summariesData;
+    var reds = ArrayList(u8).init(allocator);
+    var greens = ArrayList(u8).init(allocator);
+    var blues = ArrayList(u8).init(allocator);
+
+    for (summariesData) |summary| {
+        var summaryData = try extractSummary(summary, allocator);
+
+        try reds.append(summaryData.red);
+        try greens.append(summaryData.green);
+        try blues.append(summaryData.blue);
+    }
+
+    return [_][]u8{ try reds.toOwnedSlice(), try greens.toOwnedSlice(), try blues.toOwnedSlice() };
 }
 
-// Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
-fn extractGameData(text: []const u8, allocator: Allocator) Game {
-    _ = allocator;
+fn extractGameData(text: []const u8, allocator: Allocator) !Game {
     var data = std.mem.splitScalar(u8, text, ':');
 
     var gameRaw = data.next().?;
-    _ = gameRaw;
+    var gameId = try extractGameId(gameRaw, allocator);
     var summariesRaw = data.next().?;
-    _ = summariesRaw;
+    var summaries = try extractSummaries(summariesRaw, allocator);
 
-    // var summaries = parseSummaries(summariesRaw, allocator);
-    // defer allocator.free(summaries);
+    var game = Game.init(gameId, summaries[0], summaries[1], summaries[2], allocator);
+    return game;
 }
 
 // fn gameData() void {}
@@ -166,8 +176,30 @@ pub fn main() !void {
     std.debug.print("{d}\n", .{total});
 }
 
-fn print(text: []const u8) void {
-    std.debug.print("{s}\n", .{text});
+test "extractGameData 'Game 20: 4 green, 3 blue, 1 red; 9 red, 14 blue, 9 green; 1 blue, 17 red, 2 green; 8 red, 13 blue, 8 green; 7 red, 2 green, 20 blue; 6 green, 13 red, 5 blue'" {
+    var result = try extractGameData("Game 20: 4 green, 3 blue, 1 red; 9 red, 14 blue, 9 green; 1 blue, 17 red, 2 green; 8 red, 13 blue, 8 green; 7 red, 2 green, 20 blue; 6 green, 13 red, 5 blue", test_allocator);
+    var expectedReds = [_]u8{ 1, 9, 17, 8, 7, 13 };
+    var expectedGreens = [_]u8{ 4, 9, 2, 8, 2, 6 };
+    var expectedBlues = [_]u8{ 3, 14, 1, 13, 20, 5 };
+    defer result.deinit();
+
+    try std.testing.expect(result.id == 20);
+    try std.testing.expect(std.mem.eql(u8, result.red, &expectedReds));
+    try std.testing.expect(std.mem.eql(u8, result.green, &expectedGreens));
+    try std.testing.expect(std.mem.eql(u8, result.blue, &expectedBlues));
+}
+
+test "extractGameData 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
+    var result = try extractGameData("Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green", test_allocator);
+    var expectedReds = [_]u8{ 4, 1, 0 };
+    var expectedGreens = [_]u8{ 0, 2, 2 };
+    var expectedBlues = [_]u8{ 3, 6, 0 };
+    defer result.deinit();
+
+    try std.testing.expect(result.id == 1);
+    try std.testing.expect(std.mem.eql(u8, result.red, &expectedReds));
+    try std.testing.expect(std.mem.eql(u8, result.green, &expectedGreens));
+    try std.testing.expect(std.mem.eql(u8, result.blue, &expectedBlues));
 }
 
 test "extractSummary '13 red, 2 blue, 8 green' to {red: 13, green: 8, blue: 2}" {
