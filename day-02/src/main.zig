@@ -5,8 +5,8 @@ const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const test_allocator = std.testing.allocator;
 
 // TODO this can be pulled into a common utils folder
-fn sumList(list: ArrayList(u8)) u16 {
-    var sum: u16 = 0;
+fn sumList(comptime T: type, list: ArrayList(T)) u32 {
+    var sum: u32 = 0;
 
     for (list.items) |n| {
         sum += n;
@@ -54,6 +54,15 @@ const Game = struct {
         var maxBlue = std.mem.max(u8, self.blue);
 
         return Summary.init(maxRed, maxGreen, maxBlue);
+    }
+
+    pub fn power(self: Self) u16 {
+        var maxes = self.maxValues();
+        var maxRed: u16 = @intCast(maxes.red);
+        var maxGreen: u16 = @intCast(maxes.green);
+        var maxBlue: u16 = @intCast(maxes.blue);
+
+        return maxRed * maxGreen * maxBlue;
     }
 
     pub fn deinit(self: Self) void {
@@ -167,16 +176,27 @@ pub fn main() !void {
     var list = ArrayList(u8).init(allocator);
     defer list.deinit();
 
+    var powers = ArrayList(u16).init(allocator);
+    defer powers.deinit();
+
     var bufReader = std.io.bufferedReader(file.reader());
     var reader = bufReader.reader();
     var buffer: [512]u8 = undefined;
     while (try reader.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
-        _ = line;
-        // var num = 0;
-        // try list.append(num);
+        var game = try extractGameData(line, allocator);
+        defer game.deinit();
+
+        var power = game.power();
+        try powers.append(power);
+
+        if (isGamePossible(game, gameConfig)) {
+            try list.append(game.id);
+        }
     }
-    var total = sumList(list);
-    std.debug.print("{d}\n", .{total});
+    var total = sumList(u8, list);
+    var totalPower = sumList(u16, powers);
+    std.debug.print("Total ids: {d}\n", .{total});
+    std.debug.print("Sum of powers: {d}\n", .{totalPower});
 }
 
 test "isGamePossible not possible 'Game 1: 23 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
@@ -195,6 +215,15 @@ test "isGamePossible possible 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 
     var isPossible = isGamePossible(result, gameConfig);
 
     try std.testing.expect(isPossible);
+}
+
+test "extractGameData power 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
+    var result = try extractGameData("Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green", test_allocator);
+    defer result.deinit();
+
+    var power = result.power();
+
+    try std.testing.expect(power == 48);
 }
 
 test "extractGameData maxValues 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
