@@ -29,12 +29,6 @@ const Summary = struct {
     }
 };
 
-const gameConfig = Summary{
-    .red = 12,
-    .green = 13,
-    .blue = 14,
-};
-
 const Game = struct {
     const Self = @This();
 
@@ -148,6 +142,17 @@ fn extractGameData(text: []const u8, allocator: Allocator) !Game {
     return game;
 }
 
+const gameConfig = Summary{
+    .red = 12,
+    .green = 13,
+    .blue = 14,
+};
+
+fn isGamePossible(game: Game, config: Summary) bool {
+    var maxes = game.maxValues();
+    return (maxes.red <= config.red) and (maxes.green <= config.green) and (maxes.blue <= config.blue);
+}
+
 // fn gameData() void {}
 
 pub fn main() !void {
@@ -172,6 +177,24 @@ pub fn main() !void {
     }
     var total = sumList(list);
     std.debug.print("{d}\n", .{total});
+}
+
+test "isGamePossible not possible 'Game 1: 23 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
+    var result = try extractGameData("Game 1: 23 blue, 4 red; 1 red, 2 green, 6 blue; 2 green", test_allocator);
+    defer result.deinit();
+
+    var isPossible = isGamePossible(result, gameConfig);
+
+    try std.testing.expect(!isPossible);
+}
+
+test "isGamePossible possible 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
+    var result = try extractGameData("Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green", test_allocator);
+    defer result.deinit();
+
+    var isPossible = isGamePossible(result, gameConfig);
+
+    try std.testing.expect(isPossible);
 }
 
 test "extractGameData maxValues 'Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green'" {
