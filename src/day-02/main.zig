@@ -4,16 +4,9 @@ const Allocator = std.mem.Allocator;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const test_allocator = std.testing.allocator;
 
-// TODO this can be pulled into a common utils folder
-fn sumList(comptime T: type, list: ArrayList(T)) u32 {
-    var sum: u32 = 0;
-
-    for (list.items) |n| {
-        sum += n;
-    }
-
-    return sum;
-}
+const utils = @import("utilities");
+const parseString = utils.parseString;
+const sumList = utils.sumList;
 
 const Summary = struct {
     red: u8,
@@ -71,15 +64,6 @@ const Game = struct {
         self.allocator.free(self.blue);
     }
 };
-
-fn parseString(string: []const u8, delimiter: u8, allocator: Allocator) ![][]const u8 {
-    var list = ArrayList([]const u8).init(allocator);
-    var iter = std.mem.splitScalar(u8, string, delimiter);
-    while (iter.next()) |str| {
-        try list.append(str);
-    }
-    return list.toOwnedSlice();
-}
 
 fn extractGameId(gameLabel: []const u8, allocator: Allocator) !u8 {
     var gameData = try parseString(gameLabel, ' ', allocator);
@@ -162,14 +146,12 @@ fn isGamePossible(game: Game, config: Summary) bool {
     return (maxes.red <= config.red) and (maxes.green <= config.green) and (maxes.blue <= config.blue);
 }
 
-// fn gameData() void {}
-
 pub fn main() !void {
     var gpa = GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const inputFile = "input.txt";
+    const inputFile = "src/day-02/input.txt";
     const file = try std.fs.cwd().openFile(inputFile, .{});
     defer file.close();
 

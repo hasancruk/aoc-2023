@@ -3,17 +3,10 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const GeneralPurposeAllocator = std.heap.GeneralPurposeAllocator;
 const test_allocator = std.testing.allocator;
-
-fn charToDigit(c: u8) u8 {
-    return switch (c) {
-        '0'...'9' => c - '0',
-        else => c,
-    };
-}
-
-fn isDigit(c: u8) bool {
-    return charToDigit(c) < 10;
-}
+const utils = @import("utilities");
+const sumList = utils.sumList;
+const charToDigit = utils.charToDigit;
+const isDigit = utils.isDigit;
 
 fn extractDigits(text: []const u8) [2]u8 {
     var isFirst = true;
@@ -115,27 +108,12 @@ fn concatDigits(digits: [2]u8) u8 {
     return (digits[0] * 10) + digits[1];
 }
 
-fn readToList(allocator: Allocator) void {
-    var nums = ArrayList(u8).init(allocator);
-    _ = nums;
-}
-
-fn sumList(list: ArrayList(u8)) u16 {
-    var sum: u16 = 0;
-
-    for (list.items) |n| {
-        sum += n;
-    }
-
-    return sum;
-}
-
 pub fn main() !void {
     var gpa = GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const inputFile = "part-1.txt";
+    const inputFile = "src/day-01/input.txt";
     const file = try std.fs.cwd().openFile(inputFile, .{});
     defer file.close();
 
@@ -153,7 +131,7 @@ pub fn main() !void {
 
         try list.append(num);
     }
-    var total = sumList(list);
+    var total = sumList(u8, list);
     std.debug.print("{d}\n", .{total});
 }
 
