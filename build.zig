@@ -6,9 +6,8 @@ fn createNewModule(
     optimize: std.builtin.OptimizeMode,
     name: []const u8,
     sourcePath: []const u8,
-    runCmd: []const u8,
-    testCmd: []const u8,
-) void {
+    comptime short: []const u8,
+) !void {
     const exe = b.addExecutable(.{
         .name = name,
         // In this case the main source file is merely a path, however, in more
@@ -30,8 +29,23 @@ fn createNewModule(
         run_cmd.addArgs(args);
     }
 
-    // TODO format string to be run:{}
-    const run_step = b.step(runCmd, "Run main for the day");
+    var shortTrimmed: [short.len]u8 = undefined;
+    @memcpy(&shortTrimmed, short[0..short.len]);
+    std.mem.replaceScalar(u8, &shortTrimmed, ' ', 0);
+
+    var runCmdBuf: [100]u8 = undefined;
+    const runCmd = try std.fmt.bufPrint(runCmdBuf[0..], "run:{s}", .{shortTrimmed});
+
+    var runDescBuf: [100]u8 = undefined;
+    const runDescription = try std.fmt.bufPrint(runDescBuf[0..], " Run {s}", .{short});
+
+    var testCmdBuf: [100]u8 = undefined;
+    const testCmd = try std.fmt.bufPrint(testCmdBuf[0..], "test:{s}", .{shortTrimmed});
+
+    var testDescBuf: [100]u8 = undefined;
+    const testDescription = try std.fmt.bufPrint(testDescBuf[0..], " Run {s} unit tests", .{short});
+
+    const run_step = b.step(runCmd, runDescription);
     run_step.dependOn(&run_cmd.step);
 
     const unit_tests = b.addTest(.{
@@ -43,14 +57,14 @@ fn createNewModule(
     unit_tests.addModule("utilities", utilities);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
-    const test_step = b.step(testCmd, "Run unit tests for the day");
+    const test_step = b.step(testCmd, testDescription);
     test_step.dependOn(&run_unit_tests.step);
 }
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
-pub fn build(b: *std.Build) void {
+pub fn build(b: *std.Build) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -176,13 +190,12 @@ pub fn build(b: *std.Build) void {
     test_step_01.dependOn(&run_unit_tests_01.step);
     test_step_02.dependOn(&run_unit_tests_02.step);
 
-    createNewModule(
+    try createNewModule(
         b,
         target,
         optimize,
         "aoc-2023-day-03",
         "src/day-03/main.zig",
-        "run:day03",
-        "test:day03",
+        "day 03",
     );
 }
