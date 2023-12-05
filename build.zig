@@ -97,11 +97,35 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    unit_tests.addModule("utilities", utilities);
+
+    const unit_tests_01 = b.addTest(.{
+        .root_source_file = .{ .path = "src/day-01/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    unit_tests_01.addModule("utilities", utilities);
+
+    const unit_tests_02 = b.addTest(.{
+        .root_source_file = .{ .path = "src/day-02/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    unit_tests_02.addModule("utilities", utilities);
+
     const run_unit_tests = b.addRunArtifact(unit_tests);
+    const run_unit_tests_01 = b.addRunArtifact(unit_tests_01);
+    const run_unit_tests_02 = b.addRunArtifact(unit_tests_02);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
+    const test_step_01 = b.step("test:day01", "Run day 01 unit tests");
+    const test_step_02 = b.step("test:day02", "Run day 02 unit tests");
     test_step.dependOn(&run_unit_tests.step);
+    test_step_01.dependOn(&run_unit_tests_01.step);
+    test_step_02.dependOn(&run_unit_tests_02.step);
 }
