@@ -1,5 +1,52 @@
 const std = @import("std");
 
+fn createNewModule(
+    b: *std.Build,
+    target: std.zig.CrossTarget,
+    optimize: std.builtin.OptimizeMode,
+    name: []const u8,
+    sourcePath: []const u8,
+    runCmd: []const u8,
+    testCmd: []const u8,
+) void {
+    const exe = b.addExecutable(.{
+        .name = name,
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = .{ .path = sourcePath },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const utilities = b.addModule("utilities", .{ .source_file = .{ .path = "src/lib/utilities.zig" } });
+    exe.addModule("utilities", utilities);
+
+    b.installArtifact(exe);
+
+    const run_cmd = b.addRunArtifact(exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+
+    if (b.args) |args| {
+        run_cmd.addArgs(args);
+    }
+
+    // TODO format string to be run:{}
+    const run_step = b.step(runCmd, "Run main for the day");
+    run_step.dependOn(&run_cmd.step);
+
+    const unit_tests = b.addTest(.{
+        .root_source_file = .{ .path = sourcePath },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    unit_tests.addModule("utilities", utilities);
+
+    const run_unit_tests = b.addRunArtifact(unit_tests);
+    const test_step = b.step(testCmd, "Run unit tests for the day");
+    test_step.dependOn(&run_unit_tests.step);
+}
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -128,4 +175,14 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_unit_tests.step);
     test_step_01.dependOn(&run_unit_tests_01.step);
     test_step_02.dependOn(&run_unit_tests_02.step);
+
+    createNewModule(
+        b,
+        target,
+        optimize,
+        "aoc-2023-day-03",
+        "src/day-03/main.zig",
+        "run:day03",
+        "test:day03",
+    );
 }
