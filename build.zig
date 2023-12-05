@@ -6,8 +6,9 @@ fn createNewModule(
     optimize: std.builtin.OptimizeMode,
     name: []const u8,
     sourcePath: []const u8,
-    comptime short: []const u8,
-) !void {
+    runCmd: []const u8,
+    testCmd: []const u8,
+) void {
     const exe = b.addExecutable(.{
         .name = name,
         // In this case the main source file is merely a path, however, in more
@@ -29,23 +30,7 @@ fn createNewModule(
         run_cmd.addArgs(args);
     }
 
-    var shortTrimmed: [short.len]u8 = undefined;
-    @memcpy(&shortTrimmed, short[0..short.len]);
-    std.mem.replaceScalar(u8, &shortTrimmed, ' ', 0);
-
-    var runCmdBuf: [100]u8 = undefined;
-    const runCmd = try std.fmt.bufPrint(runCmdBuf[0..], "run:{s}", .{shortTrimmed});
-
-    var runDescBuf: [100]u8 = undefined;
-    const runDescription = try std.fmt.bufPrint(runDescBuf[0..], " Run {s}", .{short});
-
-    var testCmdBuf: [100]u8 = undefined;
-    const testCmd = try std.fmt.bufPrint(testCmdBuf[0..], "test:{s}", .{shortTrimmed});
-
-    var testDescBuf: [100]u8 = undefined;
-    const testDescription = try std.fmt.bufPrint(testDescBuf[0..], " Run {s} unit tests", .{short});
-
-    const run_step = b.step(runCmd, runDescription);
+    const run_step = b.step(runCmd, "Execute main");
     run_step.dependOn(&run_cmd.step);
 
     const unit_tests = b.addTest(.{
@@ -57,7 +42,7 @@ fn createNewModule(
     unit_tests.addModule("utilities", utilities);
 
     const run_unit_tests = b.addRunArtifact(unit_tests);
-    const test_step = b.step(testCmd, testDescription);
+    const test_step = b.step(testCmd, "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
 }
 
@@ -190,12 +175,13 @@ pub fn build(b: *std.Build) !void {
     test_step_01.dependOn(&run_unit_tests_01.step);
     test_step_02.dependOn(&run_unit_tests_02.step);
 
-    try createNewModule(
+    createNewModule(
         b,
         target,
         optimize,
         "aoc-2023-day-03",
         "src/day-03/main.zig",
-        "day 03",
+        "run:day03",
+        "test:day03",
     );
 }
