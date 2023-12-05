@@ -79,33 +79,21 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const exe_02 = b.addExecutable(.{
-        .name = "aoc-2023-day-02",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/day-02/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
     const utilities = b.addModule("utilities", .{ .source_file = .{ .path = "src/lib/utilities.zig" } });
     exe.addModule("utilities", utilities);
     exe_01.addModule("utilities", utilities);
-    exe_02.addModule("utilities", utilities);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
     b.installArtifact(exe);
     b.installArtifact(exe_01);
-    b.installArtifact(exe_02);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
     // such a dependency.
     const run_cmd = b.addRunArtifact(exe);
     const run_01_cmd = b.addRunArtifact(exe_01);
-    const run_02_cmd = b.addRunArtifact(exe_02);
 
     // By making the run step depend on the install step, it will be run from the
     // installation directory rather than directly from within the cache directory.
@@ -113,14 +101,12 @@ pub fn build(b: *std.Build) !void {
     // files, this ensures they will be present and in the expected location.
     run_cmd.step.dependOn(b.getInstallStep());
     run_01_cmd.step.dependOn(b.getInstallStep());
-    run_02_cmd.step.dependOn(b.getInstallStep());
 
     // This allows the user to pass arguments to the application in the build
     // command itself, like this: `zig build run -- arg1 arg2 etc`
     if (b.args) |args| {
         run_cmd.addArgs(args);
         run_01_cmd.addArgs(args);
-        run_02_cmd.addArgs(args);
     }
 
     // This creates a build step. It will be visible in the `zig build --help` menu,
@@ -128,9 +114,6 @@ pub fn build(b: *std.Build) !void {
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_01_step = b.step("run:day01", "Run day 01");
     run_01_step.dependOn(&run_01_cmd.step);
-
-    const run_02_step = b.step("run:day02", "Run day 02");
-    run_02_step.dependOn(&run_02_cmd.step);
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
@@ -153,27 +136,26 @@ pub fn build(b: *std.Build) !void {
 
     unit_tests_01.addModule("utilities", utilities);
 
-    const unit_tests_02 = b.addTest(.{
-        .root_source_file = .{ .path = "src/day-02/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    unit_tests_02.addModule("utilities", utilities);
-
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const run_unit_tests_01 = b.addRunArtifact(unit_tests_01);
-    const run_unit_tests_02 = b.addRunArtifact(unit_tests_02);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
     const test_step_01 = b.step("test:day01", "Run day 01 unit tests");
-    const test_step_02 = b.step("test:day02", "Run day 02 unit tests");
     test_step.dependOn(&run_unit_tests.step);
     test_step_01.dependOn(&run_unit_tests_01.step);
-    test_step_02.dependOn(&run_unit_tests_02.step);
+
+    createNewModule(
+        b,
+        target,
+        optimize,
+        "aoc-2023-day-02",
+        "src/day-02/main.zig",
+        "run:day02",
+        "test:day02",
+    );
 
     createNewModule(
         b,
