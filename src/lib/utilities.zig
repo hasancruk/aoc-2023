@@ -6,7 +6,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const test_allocator = std.testing.allocator;
 
-fn concatDigits(digits: []u8) u32 {
+pub fn concatDigits(digits: []u8) u32 {
     var len: u32 = @as(u32, @intCast(digits.len)) - 1;
     var factor = std.math.pow(u32, 10, len);
     var result: u32 = 0;
