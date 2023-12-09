@@ -45,14 +45,13 @@ fn convertPointsToNumber(points: []Point) !Number {
     };
 }
 
-// .....664...998........343...............851............................2............414.....................3....................948.164....
 // TODO u8 might be too small
 fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
-    var pointBuffer = ArrayList(Point).init(allocator);
-    defer pointBuffer.deinit();
-
     var list = ArrayList([]Point).init(allocator);
     defer list.deinit();
+
+    var pointBuffer = ArrayList(Point).init(allocator);
+    defer pointBuffer.deinit();
 
     var numberStarted = false;
     for (text, 0..) |character, col| {
@@ -81,7 +80,6 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
         }
     }
 
-    // TODO flush the remaining points in the buffer to list
     return try list.toOwnedSlice();
 }
 
@@ -122,7 +120,12 @@ pub fn main() !void {
 
 test "extractToPoints" {
     const result = try extractToPoints(@as(u8, 0), ".....664...998........343...............851............................2............414.....................3....................948.164....", test_allocator);
-    defer test_allocator.free(result);
+    defer {
+        for (result) |r| {
+            test_allocator.free(r);
+        }
+        test_allocator.free(result);
+    }
 
     for (result) |points| {
         std.debug.print("Point set\n", .{});
