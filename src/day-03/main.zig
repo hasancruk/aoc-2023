@@ -15,6 +15,8 @@ const concatDigits = utils.concatDigits;
 const Schematic = struct {
     height: usize,
     width: usize,
+    points: [][]Point,
+    symbols: []Symbol,
 };
 
 const Point = struct {
@@ -22,6 +24,8 @@ const Point = struct {
     row: u8,
     value: u8,
 };
+
+const Symbol = Point;
 
 const Number = struct {
     value: u32,
@@ -46,6 +50,7 @@ fn convertPointsToNumber(points: []Point) !Number {
 }
 
 // TODO u8 might be too small
+// "..*617....885...*....-....=...*..."
 fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
     var list = ArrayList([]Point).init(allocator);
     defer list.deinit();
@@ -57,7 +62,11 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
     for (text, 0..) |character, col| {
         var column = @as(u8, @intCast(col));
         switch (character) {
-            '.' => {
+            // TODO this list was eye balled and could potentially miss a symbol
+            '.', '*', '-', '/', '%', '$', '@', '+', '=', '#', '&' => |c| {
+                if (c != '.') {
+                    // TODO handle symbol logic
+                }
                 if (numberStarted) {
                     numberStarted = false;
                     try list.append(try pointBuffer.toOwnedSlice());
@@ -78,6 +87,10 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
             // TODO add symbols logic
             else => std.debug.print("No character", .{}),
         }
+    }
+
+    if (pointBuffer.items.len > 0) {
+        try list.append(try pointBuffer.toOwnedSlice());
     }
 
     return try list.toOwnedSlice();
@@ -118,8 +131,42 @@ pub fn main() !void {
     std.debug.print("Total: {d}\n", .{total});
 }
 
-test "extractToPoints" {
-    const result = try extractToPoints(@as(u8, 0), ".....664...998........343...............851............................2............414.....................3....................948.164....", test_allocator);
+// test "extractToPoints with symbols" {
+//     const result = try extractToPoints(@as(u8, 0), "..*617....885...*....-....=...*...", test_allocator);
+//     defer {
+//         for (result) |r| {
+//             test_allocator.free(r);
+//         }
+//         test_allocator.free(result);
+//     }
+
+//     for (result) |points| {
+//         std.debug.print("Point set\n", .{});
+//         for (points) |point| {
+//             std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
+//         }
+//     }
+// }
+
+// test "extractToPoints without symbols '21...664...99..12'" {
+//     const result = try extractToPoints(@as(u8, 0), "21...664...99..12", test_allocator);
+//     defer {
+//         for (result) |r| {
+//             test_allocator.free(r);
+//         }
+//         test_allocator.free(result);
+//     }
+
+//     for (result) |points| {
+//         std.debug.print("Point set\n", .{});
+//         for (points) |point| {
+//             std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
+//         }
+//     }
+// }
+
+test "extractToPoints without symbols '.....664...998...'" {
+    const result = try extractToPoints(@as(u8, 0), ".....664...998...", test_allocator);
     defer {
         for (result) |r| {
             test_allocator.free(r);
@@ -127,12 +174,29 @@ test "extractToPoints" {
         test_allocator.free(result);
     }
 
-    for (result) |points| {
-        std.debug.print("Point set\n", .{});
-        for (points) |point| {
-            std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
-        }
-    }
+    var expected = [2][3]Point{
+        [_]Point{
+            .{ .column = 5, .row = 0, .value = 6 },
+            .{ .column = 6, .row = 0, .value = 6 },
+            .{ .column = 7, .row = 0, .value = 4 },
+        },
+        [_]Point{
+            .{ .column = 11, .row = 0, .value = 9 },
+            .{ .column = 12, .row = 0, .value = 9 },
+            .{ .column = 13, .row = 0, .value = 8 },
+        },
+    };
+    _ = expected;
+
+    // for (result) |points| {
+    //     std.debug.print("Point set\n", .{});
+    //     for (points) |point| {
+    //         std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
+    //     }
+    // }
+
+    // std.debug.print("{any}\n", .{@TypeOf(&expected[0..1])});
+    // try std.testing.expectEqualSlices([]Point, &expected, result);
 }
 
 test "convertPointsToNumber 3 points to 921" {
