@@ -55,6 +55,18 @@ pub fn isDigit(c: u8) bool {
     return charToDigit(c) < 10;
 }
 
+test "hash struct with values switched" {
+    var point = .{
+        .x = @as(u8, 2),
+        .y = @as(u8, 23),
+    };
+
+    var result = hash(point);
+    var expected = "4884a230afa1a7c5";
+
+    try std.testing.expect(std.mem.eql(u8, &result, expected));
+}
+
 test "hash struct" {
     var point = .{
         .x = @as(u8, 23),
