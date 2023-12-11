@@ -13,10 +13,27 @@ const hash = utils.hash;
 const concatDigits = utils.concatDigits;
 
 const Schematic = struct {
-    height: usize,
-    width: usize,
+    // height: usize,
+    // width: usize,
     points: [][]Point,
     symbols: []Symbol,
+    allocator: Allocator,
+
+    pub fn init(points: [][]Point, symbols: []Symbol, allocator: Allocator) Schematic {
+        return .{
+            .points = points,
+            .symbols = symbols,
+            .allocator = allocator,
+        };
+    }
+
+    pub fn deinit(self: *Schematic) void {
+        for (self.points) |point| {
+            self.allocator.free(point);
+        }
+        self.allocator.free(self.points);
+        self.allocator.free(self.symbols);
+    }
 };
 
 const Point = struct {
@@ -51,9 +68,11 @@ fn convertPointsToNumber(points: []Point) !Number {
 
 // TODO u8 might be too small
 // "..*617....885...*....-....=...*..."
-fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
-    var list = ArrayList([]Point).init(allocator);
-    defer list.deinit();
+fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) !Schematic {
+    var pointsList = ArrayList([]Point).init(allocator);
+    defer pointsList.deinit();
+    var symbolsList = ArrayList(Symbol).init(allocator);
+    defer symbolsList.deinit();
 
     var pointBuffer = ArrayList(Point).init(allocator);
     defer pointBuffer.deinit();
@@ -66,10 +85,16 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
             '.', '*', '-', '/', '%', '$', '@', '+', '=', '#', '&' => |c| {
                 if (c != '.') {
                     // TODO handle symbol logic
+                    var symbol = Symbol{
+                        .column = column,
+                        .row = row,
+                        .value = c,
+                    };
+                    try symbolsList.append(symbol);
                 }
                 if (numberStarted) {
                     numberStarted = false;
-                    try list.append(try pointBuffer.toOwnedSlice());
+                    try pointsList.append(try pointBuffer.toOwnedSlice());
                 }
             },
             '0'...'9' => |c| {
@@ -90,10 +115,12 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) ![][]Point {
     }
 
     if (pointBuffer.items.len > 0) {
-        try list.append(try pointBuffer.toOwnedSlice());
+        try pointsList.append(try pointBuffer.toOwnedSlice());
     }
 
-    return try list.toOwnedSlice();
+    var schematic = Schematic.init(try pointsList.toOwnedSlice(), try symbolsList.toOwnedSlice(), allocator);
+
+    return schematic;
 }
 
 pub fn main() !void {
@@ -166,34 +193,23 @@ pub fn main() !void {
 // }
 
 test "extractToPoints without symbols '.....664...998...'" {
-    const result = try extractToPoints(@as(u8, 0), ".....664...998...", test_allocator);
-    defer {
-        for (result) |r| {
-            test_allocator.free(r);
+    var schematic = try extractToPoints(@as(u8, 0), "..*617....885...*....-....=...*...", test_allocator);
+    // var schematic = try extractToPoints(@as(u8, 0), ".....664...998...", test_allocator);
+
+    defer schematic.deinit();
+
+    for (schematic.points) |points| {
+        std.debug.print("Point set\n", .{});
+        for (points) |point| {
+            std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
         }
-        test_allocator.free(result);
     }
 
-    var expected = [2][3]Point{
-        [_]Point{
-            .{ .column = 5, .row = 0, .value = 6 },
-            .{ .column = 6, .row = 0, .value = 6 },
-            .{ .column = 7, .row = 0, .value = 4 },
-        },
-        [_]Point{
-            .{ .column = 11, .row = 0, .value = 9 },
-            .{ .column = 12, .row = 0, .value = 9 },
-            .{ .column = 13, .row = 0, .value = 8 },
-        },
-    };
-    _ = expected;
+    for (schematic.symbols) |symbol| {
+        std.debug.print("Symbol set\n", .{});
 
-    // for (result) |points| {
-    //     std.debug.print("Point set\n", .{});
-    //     for (points) |point| {
-    //         std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
-    //     }
-    // }
+        std.debug.print("[{d}, {d}]: {c}\n", .{ symbol.column, symbol.row, symbol.value });
+    }
 
     // std.debug.print("{any}\n", .{@TypeOf(&expected[0..1])});
     // try std.testing.expectEqualSlices([]Point, &expected, result);
