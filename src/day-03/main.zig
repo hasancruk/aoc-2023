@@ -124,6 +124,73 @@ const Schematic = struct {
         return try numberMatches.toOwnedSlice();
     }
 
+    pub fn findGearRatios(self: *Schematic) ![]u32 {
+        var ratios = ArrayList(u32).init(self.allocator);
+        defer ratios.deinit();
+
+        var seenNumbers = AutoHashMap([16]u8, Point).init(self.allocator);
+        defer seenNumbers.deinit();
+
+        for (self.symbols.items) |symbol| {
+            switch (symbol.value) {
+                '*' => {
+                    var searchCoords = try getSearchCoords(symbol, self.width, self.height, self.allocator);
+                    defer self.allocator.free(searchCoords);
+
+                    var maybeNumbers = ArrayList(Number).init(self.allocator);
+                    defer maybeNumbers.deinit();
+
+                    var maybeSeenNumbers = AutoHashMap([16]u8, Point).init(self.allocator);
+                    defer maybeSeenNumbers.deinit();
+
+                    searchBlock: for (searchCoords) |coord| {
+                        var hashedCoord = hash(coord);
+                        var match = self.allNumbers.get(hashedCoord);
+
+                        var isSeen = false;
+
+                        if (match) |matched| {
+                            for (matched.points) |point| {
+                                var hashedPoint = hash(point);
+                                var seenPoint = seenNumbers.get(hashedPoint);
+                                if (seenPoint != null) {
+                                    isSeen = true;
+                                    continue :searchBlock;
+                                } else {
+                                    try maybeSeenNumbers.put(hashedPoint, point);
+                                }
+                            }
+
+                            if (!isSeen) {
+                                try maybeNumbers.append(matched);
+                            }
+                        }
+                    }
+
+                    if (maybeNumbers.items.len == 2) {
+                        // std.debug.print("Exactly two matches: {d}, {d}\n", .{ maybeNumbers.items[0].value, maybeNumbers.items[1].value });
+                        var ratio: u32 = 1;
+
+                        var iter = maybeSeenNumbers.iterator();
+
+                        while (iter.next()) |seenNumber| {
+                            try seenNumbers.put(seenNumber.key_ptr.*, seenNumber.value_ptr.*);
+                        }
+
+                        for (maybeNumbers.items) |num| {
+                            ratio *= num.value;
+                        }
+
+                        try ratios.append(ratio);
+                    }
+                },
+                else => continue,
+            }
+        }
+
+        return try ratios.toOwnedSlice();
+    }
+
     pub fn deinit(self: *Schematic) void {
         for (self.points.items) |point| {
             self.allocator.free(point);
@@ -274,6 +341,9 @@ pub fn main() !void {
     var list = ArrayList(u32).init(allocator);
     defer list.deinit();
 
+    var ratioList = ArrayList(u32).init(allocator);
+    defer ratioList.deinit();
+
     var bufReader = std.io.bufferedReader(file.reader());
     var reader = bufReader.reader();
     var buffer: [512]u8 = undefined;
@@ -293,12 +363,21 @@ pub fn main() !void {
     var results = try schematic.findAdjacent();
     defer allocator.free(results);
 
+    var ratios = try schematic.findGearRatios();
+    defer allocator.free(ratios);
+
     for (results) |num| {
         try list.append(num.value);
     }
 
+    for (ratios) |ratio| {
+        try ratioList.append(ratio);
+    }
+
     var total = sumList(u32, list);
+    var ratioTotal = sumList(u32, ratioList);
     std.debug.print("Total: {d}\n", .{total});
+    std.debug.print("Ratio total: {d}\n", .{ratioTotal});
 }
 
 test "findAdjacent numbers '..*617..123-.'" {
