@@ -271,29 +271,33 @@ pub fn main() !void {
     const file = try std.fs.cwd().openFile(inputFile, .{});
     defer file.close();
 
-    var list = ArrayList(u8).init(allocator);
+    var list = ArrayList(u32).init(allocator);
     defer list.deinit();
-
-    var powers = ArrayList(u16).init(allocator);
-    defer powers.deinit();
 
     var bufReader = std.io.bufferedReader(file.reader());
     var reader = bufReader.reader();
     var buffer: [512]u8 = undefined;
-    // TODO might have to read the entire file into memory for this one
+
+    var schematic = Schematic.init(allocator);
+    defer schematic.deinit();
+
+    var row: u8 = 0;
+
     while (try reader.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
-        _ = line;
-        // var game = try extractGameData(line, allocator);
-        // defer game.deinit();
-
-        // var power = game.power();
-        // try powers.append(power);
-
-        // if (isGamePossible(game, gameConfig)) {
-        //     try list.append(game.id);
-        // }
+        try extractLineIntoSchematic(row, line, &schematic, allocator);
+        row += 1;
     }
-    var total = sumList(u8, list);
+
+    schematic.setDimension(@as(u8, 140), @as(u8, 140));
+
+    var results = try schematic.findAdjacent();
+    defer allocator.free(results);
+
+    for (results) |num| {
+        try list.append(num.value);
+    }
+
+    var total = sumList(u32, list);
     std.debug.print("Total: {d}\n", .{total});
 }
 
