@@ -15,24 +15,34 @@ const concatDigits = utils.concatDigits;
 const Schematic = struct {
     // height: usize,
     // width: usize,
-    points: [][]Point,
-    symbols: []Symbol,
+    points: ArrayList([]Point),
+    symbols: ArrayList(Symbol),
     allocator: Allocator,
 
-    pub fn init(points: [][]Point, symbols: []Symbol, allocator: Allocator) Schematic {
+    pub fn init(allocator: Allocator) Schematic {
         return .{
-            .points = points,
-            .symbols = symbols,
+            .points = ArrayList([]Point).init(allocator),
+            .symbols = ArrayList(Symbol).init(allocator),
             .allocator = allocator,
         };
     }
 
+    // TODO Calculate or set height and width
+
+    pub fn insertSymbolsRow(self: *Schematic, symbols: []Symbol) !void {
+        try self.symbols.appendSlice(symbols);
+    }
+
+    pub fn insertPointsRow(self: *Schematic, points: [][]Point) !void {
+        try self.points.appendSlice(points);
+    }
+
     pub fn deinit(self: *Schematic) void {
-        for (self.points) |point| {
+        for (self.points.items) |point| {
             self.allocator.free(point);
         }
-        self.allocator.free(self.points);
-        self.allocator.free(self.symbols);
+        self.points.deinit();
+        self.symbols.deinit();
     }
 };
 
@@ -66,9 +76,10 @@ fn convertPointsToNumber(points: []Point) !Number {
     };
 }
 
+// TODO Construct clear error types to return if this goes wrong
 // TODO u8 might be too small
 // "..*617....885...*....-....=...*..."
-fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) !Schematic {
+fn extractLineIntoSchematic(row: u8, text: []const u8, schematic: *Schematic, allocator: Allocator) !void {
     var pointsList = ArrayList([]Point).init(allocator);
     defer pointsList.deinit();
     var symbolsList = ArrayList(Symbol).init(allocator);
@@ -109,7 +120,6 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) !Schematic {
                 };
                 try pointBuffer.append(point);
             },
-            // TODO add symbols logic
             else => std.debug.print("No character", .{}),
         }
     }
@@ -118,9 +128,8 @@ fn extractToPoints(row: u8, text: []const u8, allocator: Allocator) !Schematic {
         try pointsList.append(try pointBuffer.toOwnedSlice());
     }
 
-    var schematic = Schematic.init(try pointsList.toOwnedSlice(), try symbolsList.toOwnedSlice(), allocator);
-
-    return schematic;
+    try schematic.insertSymbolsRow(symbolsList.items);
+    try schematic.insertPointsRow(pointsList.items);
 }
 
 pub fn main() !void {
@@ -158,54 +167,21 @@ pub fn main() !void {
     std.debug.print("Total: {d}\n", .{total});
 }
 
-// test "extractToPoints with symbols" {
-//     const result = try extractToPoints(@as(u8, 0), "..*617....885...*....-....=...*...", test_allocator);
-//     defer {
-//         for (result) |r| {
-//             test_allocator.free(r);
-//         }
-//         test_allocator.free(result);
-//     }
-
-//     for (result) |points| {
-//         std.debug.print("Point set\n", .{});
-//         for (points) |point| {
-//             std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
-//         }
-//     }
-// }
-
-// test "extractToPoints without symbols '21...664...99..12'" {
-//     const result = try extractToPoints(@as(u8, 0), "21...664...99..12", test_allocator);
-//     defer {
-//         for (result) |r| {
-//             test_allocator.free(r);
-//         }
-//         test_allocator.free(result);
-//     }
-
-//     for (result) |points| {
-//         std.debug.print("Point set\n", .{});
-//         for (points) |point| {
-//             std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
-//         }
-//     }
-// }
-
 test "extractToPoints without symbols '.....664...998...'" {
-    var schematic = try extractToPoints(@as(u8, 0), "..*617....885...*....-....=...*...", test_allocator);
+    var schematic = Schematic.init(test_allocator);
+    try extractLineIntoSchematic(@as(u8, 0), "..*617....885...*....-....=...*...", &schematic, test_allocator);
     // var schematic = try extractToPoints(@as(u8, 0), ".....664...998...", test_allocator);
 
     defer schematic.deinit();
 
-    for (schematic.points) |points| {
+    for (schematic.points.items) |points| {
         std.debug.print("Point set\n", .{});
         for (points) |point| {
             std.debug.print("[{d}, {d}]: {d}\n", .{ point.column, point.row, point.value });
         }
     }
 
-    for (schematic.symbols) |symbol| {
+    for (schematic.symbols.items) |symbol| {
         std.debug.print("Symbol set\n", .{});
 
         std.debug.print("[{d}, {d}]: {c}\n", .{ symbol.column, symbol.row, symbol.value });
