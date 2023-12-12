@@ -152,7 +152,7 @@ const Schematic = struct {
                         if (match) |matched| {
                             for (matched.points) |point| {
                                 var hashedPoint = hash(point);
-                                var seenPoint = seenNumbers.get(hashedPoint);
+                                var seenPoint = seenNumbers.get(hashedPoint) orelse maybeSeenNumbers.get(hashedPoint);
                                 if (seenPoint != null) {
                                     isSeen = true;
                                     continue :searchBlock;
@@ -168,9 +168,7 @@ const Schematic = struct {
                     }
 
                     if (maybeNumbers.items.len == 2) {
-                        // std.debug.print("Exactly two matches: {d}, {d}\n", .{ maybeNumbers.items[0].value, maybeNumbers.items[1].value });
                         var ratio: u32 = 1;
-
                         var iter = maybeSeenNumbers.iterator();
 
                         while (iter.next()) |seenNumber| {
