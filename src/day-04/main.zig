@@ -29,7 +29,7 @@ const Scratchcard = struct {
         try self.numbers.append(number);
     }
 
-    pub fn calculatePoints(self: *Scratchcard) ?u32 {
+    pub fn countMatches(self: Scratchcard) u32 {
         var matchCount: u32 = 0;
 
         for (self.numbers.items) |number| {
@@ -38,6 +38,11 @@ const Scratchcard = struct {
             }
         }
 
+        return matchCount;
+    }
+
+    pub fn calculatePoints(self: *Scratchcard) ?u32 {
+        var matchCount = self.countMatches();
         return if (matchCount == 0) null else std.math.pow(u32, 2, matchCount - 1);
     }
 
@@ -46,6 +51,43 @@ const Scratchcard = struct {
         self.numbers.deinit();
     }
 };
+
+pub fn countCopies(cards: []const Scratchcard, allocator: Allocator) !u32 {
+    var copiesMap = AutoHashMap(u32, u32).init(allocator);
+    defer copiesMap.deinit();
+
+    var countOfCopies: u32 = 0;
+
+    for (cards) |card| {
+        try copiesMap.put(@as(u32, card.id), 1);
+    }
+
+    for (cards) |card| {
+        var matches = card.countMatches();
+        var repeatForCopies = copiesMap.get(@as(u32, @intCast(card.id))) orelse @as(u32, 1);
+
+        for (0..repeatForCopies) |_| {
+            var start: u32 = card.id + 1;
+            var end: u32 = start + matches;
+
+            for (start..end) |id| {
+                var maybeNext = copiesMap.get(@as(u32, @intCast(id)));
+                if (maybeNext) |next| {
+                    try copiesMap.put(@as(u32, @intCast(id)), next + 1);
+                }
+            }
+        }
+    }
+
+    for (cards) |card| {
+        var maybeCount = copiesMap.get(@as(u32, card.id));
+        if (maybeCount) |count| {
+            countOfCopies += count;
+        }
+    }
+
+    return countOfCopies;
+}
 
 fn extractToScratchcard(text: []const u8, allocator: Allocator) !Scratchcard {
     var data = std.mem.splitScalar(u8, text, ':');
@@ -94,27 +136,67 @@ pub fn main() !void {
     var list = ArrayList(u32).init(allocator);
     defer list.deinit();
 
+    var cards = ArrayList(Scratchcard).init(allocator);
+
+    defer {
+        for (cards.items) |*card| {
+            card.deinit();
+        }
+        cards.deinit();
+    }
+
     var bufReader = std.io.bufferedReader(file.reader());
     var reader = bufReader.reader();
     var buffer: [512]u8 = undefined;
 
     while (try reader.readUntilDelimiterOrEof(&buffer, '\n')) |line| {
         var card = try extractToScratchcard(line, allocator);
-        defer card.deinit();
-
+        try cards.append(card);
         var maybeCount = card.calculatePoints();
         if (maybeCount) |count| {
             try list.append(count);
         }
     }
 
+    var count = try countCopies(cards.items, allocator);
+
     var total = sumList(u32, list);
     std.debug.print("Total: {d}\n", .{total});
+    std.debug.print("Count: {d}\n", .{count});
 }
 
-test "scratchcard" {
-    var card = try extractToScratchcard("Card   1: 58 96 35 20 93 34 10 27 37 30 | 99 70 93 11 63 41 37 29  7 28 34 10 40 96 38 35 27 30 20 21  4 51 58 39 56", test_allocator);
-    defer card.deinit();
+test "win more scratchcards" {
+    var cards = ArrayList(Scratchcard).init(test_allocator);
 
-    std.debug.print("Card ID: {d}, Point: {?d}\n", .{ card.id, card.calculatePoints() });
+    defer {
+        for (cards.items) |*card| {
+            card.deinit();
+        }
+
+        cards.deinit();
+    }
+
+    var lines = [_][]const u8{
+        "Card 1: 41 48 83 86 17 | 83 86  6 31 17  9 48 53",
+        "Card 2: 13 32 20 16 61 | 61 30 68 82 17 32 24 19",
+        "Card 3:  1 21 53 59 44 | 69 82 63 72 16 21 14  1",
+        "Card 4: 41 92 73 84 69 | 59 84 76 51 58  5 54 83",
+        "Card 5: 87 83 26 28 32 | 88 30 70 12 93 22 82 36",
+        "Card 6: 31 18 13 56 72 | 74 77 10 23 35 67 36 11",
+    };
+
+    for (lines) |line| {
+        var card = try extractToScratchcard(line, test_allocator);
+        try cards.append(card);
+    }
+
+    var count = try countCopies(cards.items, test_allocator);
+    try std.testing.expect(count == 30);
 }
+
+// test "scratchcard" {
+//     var card = try extractToScratchcard("Card   1: 58 96 35 20 93 34 10 27 37 30 | 99 70 93 11 63 41 37 29  7 28 34 10 40 96 38 35 27 30 20 21  4 51 58 39 56", test_allocator);
+//     defer card.deinit();
+
+//     std.debug.print("Card ID: {d}, Point: {?d}\n", .{ card.id, card.calculatePoints() });
+// }
