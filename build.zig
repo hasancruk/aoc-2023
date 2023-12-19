@@ -176,4 +176,13 @@ pub fn build(b: *std.Build) !void {
         "run:day04",
         "test:day04",
     );
+    createNewModule(
+        b,
+        target,
+        optimize,
+        "aoc-2023-day-05",
+        "src/day-05/main.zig",
+        "run:day05",
+        "test:day05",
+    );
 }
