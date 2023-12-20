@@ -25,7 +25,7 @@ const MapKey = struct {
     }
 
     pub fn containsSource(self: MapKey, source: u64) bool {
-        return source >= self.sourceStart or source <= self.sourceEnd;
+        return source >= self.sourceStart and source <= self.sourceEnd;
     }
 
     pub fn getDestination(self: MapKey, source: u64) ?u64 {
@@ -33,8 +33,7 @@ const MapKey = struct {
             return null;
         }
 
-        // Should be zero at the least so skipping bound safe std.math.sub
-        var difference = source - self.sourceStart;
+        var difference = std.math.sub(u64, source, self.sourceStart) catch 0;
         var result = self.destinationStart + difference;
         return result;
     }
@@ -123,6 +122,88 @@ fn extractDataToMaps(line: []const u8, options: ExtractOptions) !void {
     }
 }
 
+const SearchOptions = struct {
+    seed: u64,
+    seedToSoilMap: []const MapKey,
+    soilToFertilizerMap: []const MapKey,
+    fertilizerToWaterMap: []const MapKey,
+    waterToLightMap: []const MapKey,
+    lightToTemperatureMap: []const MapKey,
+    temperatureToHumidityMap: []const MapKey,
+    humidityToLocationMap: []const MapKey,
+    results: *ArrayList(u64),
+};
+
+fn searchAlmanac(options: SearchOptions) !void {
+    var location: u64 = options.seed;
+
+    for (options.seedToSoilMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(options.seed);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.soilToFertilizerMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.fertilizerToWaterMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.waterToLightMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.lightToTemperatureMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.temperatureToHumidityMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+    for (options.humidityToLocationMap) |mapKey| {
+        var maybeMatch = mapKey.getDestination(location);
+        if (maybeMatch) |match| {
+            location = match;
+            break;
+        }
+    }
+
+    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
+
+    try options.results.append(location);
+}
+
 pub fn main() !void {
     var gpa = GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -132,12 +213,11 @@ pub fn main() !void {
     const file = try std.fs.cwd().openFile(inputFile, .{});
     defer file.close();
 
-    var list = ArrayList(u32).init(allocator);
+    var list = ArrayList(u64).init(allocator);
     defer list.deinit();
 
     var bufReader = std.io.bufferedReader(file.reader());
     var reader = bufReader.reader();
-    // Might need to fiddle with this for this input
     var buffer: [512]u8 = undefined;
 
     var seeds = ArrayList(u64).init(allocator);
@@ -193,8 +273,29 @@ pub fn main() !void {
         lineIndex += 1;
     }
 
-    var total = sumList(u32, list);
-    std.debug.print("Total: {d}\n", .{total});
+    for (seeds.items) |seed| {
+        try searchAlmanac(.{
+            .seed = seed,
+            .seedToSoilMap = seedToSoilMap.items,
+            .soilToFertilizerMap = soilToFertilizerMap.items,
+            .fertilizerToWaterMap = fertilizerToWaterMap.items,
+            .waterToLightMap = waterToLightMap.items,
+            .lightToTemperatureMap = lightToTemperatureMap.items,
+            .temperatureToHumidityMap = temperatureToHumidityMap.items,
+            .humidityToLocationMap = humidityToLocationMap.items,
+            .results = &list,
+        });
+    }
+
+    // for (list.items) |n| {
+    //     std.debug.print("{d}\n", .{n});
+    // }
+
+    var lowest = std.mem.min(u64, list.items);
+    std.debug.print("Lowest: {d}\n", .{lowest});
+
+    // var total = sumList(u32, list);
+    // std.debug.print("Total: {d}\n", .{total});
 }
 
 test "day 05" {
