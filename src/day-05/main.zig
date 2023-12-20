@@ -28,9 +28,9 @@ const MapKey = struct {
         return source >= self.sourceStart or source <= self.sourceEnd;
     }
 
-    pub fn getDestination(self: MapKey, source: u64) u64 {
+    pub fn getDestination(self: MapKey, source: u64) ?u64 {
         if (!self.containsSource(source)) {
-            return source;
+            return null;
         }
 
         // Should be zero at the least so skipping bound safe std.math.sub
@@ -84,9 +84,6 @@ fn extractMapType(line: []const u8) !Map {
     for (mapStrings, 0..) |name, i| {
         if (std.mem.startsWith(u8, line, name)) {
             result = @as(Map, @enumFromInt(i));
-        } else {
-            std.debug.print("{s}\n", .{line});
-            return MapExtractionError.InvalidMapType;
         }
     }
     return result orelse MapExtractionError.InvalidMapType;
