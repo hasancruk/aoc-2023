@@ -65,6 +65,7 @@ const Map = enum(u8) {
 const MapExtractionError = error{
     InvalidMapType,
     MapIndexOutOfBounds,
+    InvalidSeedRange,
 };
 
 const mapStrings = [_][]const u8{
@@ -196,6 +197,31 @@ fn searchAlmanac(options: SearchOptions) !void {
     try options.results.append(location);
 }
 
+fn toLongSeedList(seeds: []const u64, longSeeds: *ArrayList(u64)) !void {
+    if (@mod(seeds.len, 2) != 0) {
+        return MapExtractionError.InvalidSeedRange;
+    }
+
+    var start: ?u64 = null;
+    var range: ?u64 = null;
+
+    for (seeds, 0..) |seed, i| {
+        if (@mod(i, 2) == 0) {
+            start = seed;
+        } else {
+            range = seed;
+        }
+
+        if (range) |rangeUpper| {
+            for (0..rangeUpper) |r| {
+                try longSeeds.append(start.? + r);
+            }
+            start = null;
+            range = null;
+        }
+    }
+}
+
 pub fn main() !void {
     var gpa = GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
@@ -265,7 +291,12 @@ pub fn main() !void {
         lineIndex += 1;
     }
 
-    for (seeds.items) |seed| {
+    var longSeeds = ArrayList(u64).init(allocator);
+    defer longSeeds.deinit();
+
+    try toLongSeedList(seeds.items, &longSeeds);
+
+    for (longSeeds.items) |seed| {
         try searchAlmanac(.{
             .seed = seed,
             .seedToSoilMap = seedToSoilMap.items,
