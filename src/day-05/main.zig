@@ -145,7 +145,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.soilToFertilizerMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -154,7 +153,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.fertilizerToWaterMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -163,7 +161,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.waterToLightMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -172,7 +169,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.lightToTemperatureMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -181,7 +177,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.temperatureToHumidityMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -190,7 +185,6 @@ fn searchAlmanac(options: SearchOptions) !void {
         }
     }
 
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
     for (options.humidityToLocationMap) |mapKey| {
         var maybeMatch = mapKey.getDestination(location);
         if (maybeMatch) |match| {
@@ -198,8 +192,6 @@ fn searchAlmanac(options: SearchOptions) !void {
             break;
         }
     }
-
-    // std.debug.print("Matched[{d}]: {d}\n", .{ options.seed, location });
 
     try options.results.append(location);
 }
@@ -287,15 +279,8 @@ pub fn main() !void {
         });
     }
 
-    // for (list.items) |n| {
-    //     std.debug.print("{d}\n", .{n});
-    // }
-
     var lowest = std.mem.min(u64, list.items);
     std.debug.print("Lowest: {d}\n", .{lowest});
-
-    // var total = sumList(u32, list);
-    // std.debug.print("Total: {d}\n", .{total});
 }
 
 test "day 05" {
