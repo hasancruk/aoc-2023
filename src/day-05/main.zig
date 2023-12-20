@@ -19,8 +19,8 @@ const MapKey = struct {
         return .{
             .sourceStart = sourceStart,
             .destinationStart = destinationStart,
-            .sourceEnd = sourceStart + std.math.sub(u64, range, 1) catch 0,
-            .destinationEnd = destinationStart + std.math.sub(u64, range, 1) catch 0,
+            .sourceEnd = sourceStart + (std.math.sub(u64, range, 1) catch 0),
+            .destinationEnd = destinationStart + (std.math.sub(u64, range, 1) catch 0),
         };
     }
 
@@ -90,13 +90,24 @@ fn extractMapType(line: []const u8) !Map {
 }
 
 fn extractSeeds(line: []const u8, list: *ArrayList(u64)) !void {
-    _ = list;
-    _ = line;
+    var iter = std.mem.splitScalar(u8, line, ':');
+    _ = iter.next();
+    var seeds = std.mem.trim(u8, iter.next().?, " ");
+    var seedsIter = std.mem.splitScalar(u8, seeds, ' ');
+    while (seedsIter.next()) |seed| {
+        try list.append(try std.fmt.parseUnsigned(u64, seed, 10));
+    }
 }
 
 fn extractMapKey(line: []const u8, list: *ArrayList(MapKey)) !void {
-    _ = list;
-    _ = line;
+    var iter = std.mem.splitScalar(u8, line, ' ');
+    var destinationStart = try std.fmt.parseUnsigned(u64, iter.next().?, 10);
+    var sourceStart = try std.fmt.parseUnsigned(u64, iter.next().?, 10);
+    var range = try std.fmt.parseUnsigned(u64, iter.next().?, 10);
+
+    var mapKey = MapKey.init(sourceStart, destinationStart, range);
+
+    try list.append(mapKey);
 }
 
 fn extractDataToMaps(line: []const u8, options: ExtractOptions) !void {
